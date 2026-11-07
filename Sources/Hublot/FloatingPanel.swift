@@ -4,7 +4,10 @@ import AppKit
 /// without taking the keyboard focus from the app in use.
 final class FloatingPanel: NSPanel {
     private static let frameName = "HublotPanel"
-    private static let defaultSize = NSSize(width: 420, height: 320)
+    static let defaultSize = NSSize(width: 420, height: 320)
+    private static let readableSize = NSSize(width: 320, height: 240)
+
+    let reader = ReaderViewController()
 
     init() {
         super.init(
@@ -23,19 +26,35 @@ final class FloatingPanel: NSPanel {
         becomesKeyOnlyIfNeeded = true
         isReleasedWhenClosed = false
 
-        titleVisibility = .hidden
         titlebarAppearsTransparent = true
         isMovableByWindowBackground = true
         minSize = NSSize(width: 160, height: 120)
         standardWindowButton(.miniaturizeButton)?.isHidden = true
         standardWindowButton(.zoomButton)?.isHidden = true
 
-        contentView = Self.makePlaceholder()
+        contentViewController = reader
+        let controls = NSTitlebarAccessoryViewController()
+        controls.view = reader.makeTitlebarControls()
+        controls.layoutAttribute = .trailing
+        addTitlebarAccessoryViewController(controls)
 
+        setContentSize(Self.defaultSize)
         if !setFrameUsingName(Self.frameName) {
             moveToTopRightCorner()
         }
         setFrameAutosaveName(Self.frameName)
+    }
+
+    /// Enlarges a window too small to read in, keeping its top right corner in place.
+    /// A window already large enough keeps the size the user chose.
+    func growToReadableSize() {
+        guard frame.width < Self.readableSize.width || frame.height < Self.readableSize.height else { return }
+        let width = max(frame.width, Self.readableSize.width)
+        let height = max(frame.height, Self.readableSize.height)
+        setFrame(
+            NSRect(x: frame.maxX - width, y: frame.maxY - height, width: width, height: height),
+            display: true
+        )
     }
 
     private func moveToTopRightCorner() {
@@ -45,23 +64,5 @@ final class FloatingPanel: NSPanel {
             x: visible.maxX - frame.width - margin,
             y: visible.maxY - margin
         ))
-    }
-
-    private static func makePlaceholder() -> NSView {
-        let background = NSVisualEffectView()
-        background.material = .hudWindow
-        background.blendingMode = .behindWindow
-        background.state = .active
-
-        let label = NSTextField(labelWithString: "Hublot")
-        label.font = .systemFont(ofSize: 18, weight: .medium)
-        label.textColor = .secondaryLabelColor
-        label.translatesAutoresizingMaskIntoConstraints = false
-        background.addSubview(label)
-        NSLayoutConstraint.activate([
-            label.centerXAnchor.constraint(equalTo: background.centerXAnchor),
-            label.centerYAnchor.constraint(equalTo: background.centerYAnchor),
-        ])
-        return background
     }
 }
